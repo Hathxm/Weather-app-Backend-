@@ -82,6 +82,7 @@ class Login(APIView):
                 "username":user.username,
                 "email":user.email,
                 "id":user.id,
+                "is_authenticated":user.is_active,
                 "message": "Login successful",
                 "access": str(refresh.access_token),
                 "refresh": str(refresh),
