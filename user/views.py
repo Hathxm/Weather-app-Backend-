@@ -96,7 +96,8 @@ class Login(APIView):
             return Response({"error": "An error occurred while logging in"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
         
-   
+
+
 class GoogleLogin(APIView):
     def post(self, request):
         try:
@@ -114,49 +115,54 @@ class GoogleLogin(APIView):
             username = idinfo.get('sub')  # Unique identifier from Google
 
             # Check if the user already exists
-            user = User.objects.filter(username=email,email=email).first()
-            
+            user = User.objects.filter(username=email, email=email).first()
 
             if user:
-                # User exists, generate tokens with user's data
+                # User exists, check authentication status
                 is_authenticated = user.is_active
                 is_superuser = user.is_superuser
-                user_name = user.username,
-                user_mail = user.email,
-                id = user.id,
-            
+                user_name = user.username
+                user_mail = user.email
+                user_id = user.id
+
             else:
-                # User does not exist, set superuser status to False
-                user = User.objects.filter(email=email,is_superuser=True)
-                if user:
-                    return Response("This email is in use for specific purpose",status=status.HTTP_400_BAD_REQUEST)
+                # User does not exist, check for superuser status before creating
+                existing_superuser = User.objects.filter(email=email, is_superuser=True).exists()
+                if existing_superuser:
+                    return Response("This email is in use for specific purpose", status=status.HTTP_400_BAD_REQUEST)
                 else:
-                    user = User.objects.create(username=email,email=email,is_superuser=False)
+                    user = User.objects.create(username=email, email=email, is_superuser=False)
                     is_authenticated = user.is_active
                     is_superuser = False
-                    user_name = email,
-                    user_mail = email,
-                    id = user.id,
+                    user_name = email
+                    user_mail = email
+                    user_id = user.id
 
-            # Create JWT tokens
-            refresh = RefreshToken.for_user(user)
-         
-            return Response({
-                'username': user_name,
-                'email':user_mail,
-                'is_authenticated':is_authenticated,
-                'id':id,
-                'access': str(refresh.access_token),
-                'refresh': str(refresh),
-                'is_superuser': is_superuser
-            }, status=status.HTTP_200_OK)
-        
+            # Return tokens only if the user is authenticated
+            if is_authenticated:
+                refresh = RefreshToken.for_user(user)
+
+                return Response({
+                    'username': user_name,
+                    'email': user_mail,
+                    'is_authenticated': is_authenticated,
+                    'id': user_id,
+                    'access': str(refresh.access_token),
+                    'refresh': str(refresh),
+                    'is_superuser': is_superuser
+                }, status=status.HTTP_200_OK)
+            else:
+                return Response({
+                    'error': 'User is not authenticated. Please contact support or check your account activation status.'
+                }, status=status.HTTP_403_FORBIDDEN)
+
         except Exception as e:
             # Log the exception
             print(f"An error occurred: {e}")
 
             # Return a generic error response
             return Response({"error": "An error occurred while logging in"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
         
 
 class token_refresh(APIView):
